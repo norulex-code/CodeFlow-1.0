@@ -1,37 +1,57 @@
 import React, { useState } from 'react';
-import { LockClosedIcon, EyeIcon, EyeSlashIcon, EnvelopeIcon } from './icons';
-import { deleteUser, userExists } from '../services/storageService';
+import { LockClosedIcon, EyeIcon, EyeSlashIcon, EnvelopeIcon, Cog6ToothIcon, ArrowLeftIcon } from './icons';
+import { deleteUser, userExists, getAdminUser } from '../services/storageService';
 
 interface AuthScreenProps {
     onLogin: (email: string, password: string) => Promise<void>;
     onRegister: (email: string, password: string) => Promise<void>;
+    onAdminLogin: (email: string, password: string) => Promise<void>;
     error: string | null;
 }
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error }) => {
+type View = 'login' | 'register' | 'admin';
+
+const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLogin, error }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [isLoginView, setIsLoginView] = useState(true);
+    const [view, setView] = useState<View>('login');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
 
-    const clearMessages = () => {
+    const clearForm = () => {
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
         setLocalError(null);
         setNotification(null);
-    };
+    }
+    
+    const switchView = (newView: View) => {
+        clearForm();
+        setView(newView);
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        clearMessages();
+        setLocalError(null);
+        setNotification(null);
 
         try {
-            if (isLoginView) {
+            if (view === 'login') {
                 await onLogin(email, password);
-            } else {
+            } else if (view === 'admin') {
+                await onAdminLogin(email, password);
+            } else { // register
+                const adminEmail = getAdminUser();
+                if (adminEmail && email.toLowerCase() === adminEmail.toLowerCase()) {
+                    setLocalError("Este email é reservado.");
+                    setIsLoading(false);
+                    return;
+                }
                 if (password !== confirmPassword) {
                     setLocalError("As senhas não coincidem.");
                     setIsLoading(false);
@@ -58,7 +78,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error }) =
     };
     
     const handleForgotPassword = () => {
-        clearMessages();
+        setLocalError(null);
+        setNotification(null);
+
         if (!email.trim()) {
             setLocalError('Por favor, digite seu email para resetar a senha.');
             return;
@@ -76,9 +98,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error }) =
         if (confirmation) {
             deleteUser(email);
             setNotification('Conta resetada com sucesso. Por favor, registre-se novamente com uma nova senha.');
-            setIsLoginView(false);
-            setPassword('');
-            setConfirmPassword('');
+            switchView('register');
         }
     };
 
@@ -105,16 +125,28 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error }) =
         </div>
     );
 
+    const titles: Record<View, string> = {
+        login: 'CodeFlow Authenticator',
+        register: 'Criar Nova Conta',
+        admin: 'Acesso Administrativo',
+    };
+
+    const descriptions: Record<View, string> = {
+        login: 'Faça login para acessar suas contas.',
+        register: 'Crie uma conta para começar.',
+        admin: 'Login para gerenciar usuários.',
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
             <div className="w-full max-w-md p-8 space-y-8 bg-gray-800 rounded-2xl shadow-lg">
                 <div className="text-center">
                     <LockClosedIcon className="mx-auto h-12 w-12 text-cyan-400" />
                     <h2 className="mt-6 text-3xl font-extrabold text-white">
-                        CodeFlow Authenticator
+                        {titles[view]}
                     </h2>
                     <p className="mt-2 text-sm text-gray-400">
-                        {isLoginView ? 'Faça login para acessar suas contas.' : 'Crie uma conta para começar.'}
+                       {descriptions[view]}
                     </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -132,11 +164,11 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error }) =
                         />
                     </div>
                    
-                    {passwordInput(password, setPassword, "Senha", "password", isLoginView ? "current-password" : "new-password")}
+                    {passwordInput(password, setPassword, "Senha", "password", view === 'register' ? "new-password" : "current-password")}
 
-                    {!isLoginView && passwordInput(confirmPassword, setConfirmPassword, "Confirmar Senha", "confirm-password", "new-password")}
+                    {view === 'register' && passwordInput(confirmPassword, setConfirmPassword, "Confirmar Senha", "confirm-password", "new-password")}
                     
-                    {isLoginView && (
+                    {view === 'login' && (
                         <div className="flex items-center justify-end text-sm">
                             <button
                                 type="button"
@@ -157,20 +189,29 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error }) =
                             disabled={isLoading}
                             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 transition-colors disabled:bg-cyan-800 disabled:cursor-not-allowed"
                         >
-                            {isLoading ? 'Carregando...' : (isLoginView ? 'Entrar' : 'Registrar')}
+                            {isLoading ? 'Carregando...' : (view === 'register' ? 'Registrar' : 'Entrar')}
                         </button>
                     </div>
-                     <div className="text-sm text-center">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsLoginView(!isLoginView);
-                                clearMessages();
-                            }}
-                            className="font-medium text-cyan-400 hover:text-cyan-300"
-                        >
-                            {isLoginView ? 'Não tem uma conta? Registre-se' : 'Já tem uma conta? Entre'}
-                        </button>
+                     <div className="text-sm text-center space-y-2">
+                        {view === 'login' && (
+                            <button type="button" onClick={() => switchView('register')} className="font-medium text-cyan-400 hover:text-cyan-300">
+                                Não tem uma conta? Registre-se
+                            </button>
+                        )}
+                         {view === 'register' && (
+                            <button type="button" onClick={() => switchView('login')} className="font-medium text-cyan-400 hover:text-cyan-300">
+                                Já tem uma conta? Entre
+                            </button>
+                        )}
+                        {view === 'admin' ? (
+                            <button type="button" onClick={() => switchView('login')} className="font-medium text-gray-400 hover:text-gray-200 flex items-center justify-center w-full">
+                                <ArrowLeftIcon className="w-4 h-4 mr-2"/> Voltar para Login de Usuário
+                            </button>
+                        ) : (
+                             <button type="button" onClick={() => switchView('admin')} className="font-medium text-gray-400 hover:text-gray-200 flex items-center justify-center w-full pt-2">
+                                <Cog6ToothIcon className="w-4 h-4 mr-2" /> Acesso Administrativo
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>

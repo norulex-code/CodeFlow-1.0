@@ -1,19 +1,42 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Account } from './types';
-import { loadAccounts, saveAccounts, userExists, loadUser, saveUser } from './services/storageService';
+import { loadAccounts, saveAccounts, userExists, loadUser, saveUser, getAdminUser } from './services/storageService';
 import { deriveKey, generateSalt } from './services/cryptoService';
 import AccountList from './components/AccountList';
 import AuthScreen from './components/AuthScreen';
 import AddAccountModal from './components/AddAccountModal';
-import { PlusIcon, ArrowRightOnRectangleIcon, MagnifyingGlassIcon } from './components/icons';
+import AdminPanel from './components/AdminPanel';
+import ChangePasswordModal from './components/ChangePasswordModal';
+import { PlusIcon, ArrowRightOnRectangleIcon, MagnifyingGlassIcon, UserCircleIcon } from './components/icons';
 
 const App: React.FC = () => {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [masterKey, setMasterKey] = useState<CryptoKey | null>(null);
     const [currentUser, setCurrentUser] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+    const [isAdminPanelOpen, setIsAdminPanelOpen] = useState<boolean>(false);
+    const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+        const ensureAdminExists = async () => {
+            const adminEmail = getAdminUser();
+            if (!userExists(adminEmail)) {
+                try {
+                    const adminPassword = 'PE23898caafj!';
+                    const { salt, saltHex } = generateSalt();
+                    saveUser(adminEmail, saltHex);
+                    const key = await deriveKey(adminPassword, salt);
+                    await saveAccounts([], key, adminEmail);
+                    console.log('Conta de administrador mestre criada.');
+                } catch (err) {
+                    console.error('Falha ao criar a conta de administrador mestre:', err);
+                }
+            }
+        };
+        ensureAdminExists();
+    }, []);
 
     const handleLogin = async (email: string, password: string): Promise<void> => {
         setError(null);
@@ -41,8 +64,41 @@ const App: React.FC = () => {
         }
     };
     
+    const handleAdminLogin = async (email: string, password: string): Promise<void> => {
+        setError(null);
+        const adminEmail = getAdminUser();
+        if (email.toLowerCase() !== adminEmail.toLowerCase()) {
+            setError('Acesso de administrador negado.');
+            throw new Error('Admin access denied');
+        }
+        try {
+            const userData = loadUser(email);
+            if (!userData) {
+                setError('Dados do administrador não encontrados.');
+                throw new Error('Admin data not found');
+            }
+            const salt = new Uint8Array(userData.salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            const key = await deriveKey(password, salt);
+            
+            // This call will throw an error if the password is wrong, validating credentials
+            await loadAccounts(key, email);
+            
+            // If login is successful, open the panel
+            setIsAdminPanelOpen(true);
+        } catch (err) {
+            console.error('Failed to login as admin:', err);
+            setError('Credenciais de administrador inválidas.');
+            throw err;
+        }
+    };
+
     const handleRegister = async (email: string, password: string) => {
         setError(null);
+        const adminEmail = getAdminUser();
+        if (email.toLowerCase() === adminEmail.toLowerCase()) {
+            setError('Este email é reservado.');
+            throw new Error('This email is reserved for the administrator.');
+        }
         if (userExists(email)) {
             setError('Este email já está em uso.');
             throw new Error('Email already exists');
@@ -61,6 +117,32 @@ const App: React.FC = () => {
             throw err;
         }
     };
+    
+    const handleChangePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
+        if (!currentUser || !masterKey) {
+            throw new Error("Usuário não está logado ou a chave mestra está ausente.");
+        }
+        
+        const userData = loadUser(currentUser);
+        if (!userData) {
+            throw new Error("Dados do usuário não encontrados.");
+        }
+        const salt = new Uint8Array(userData.salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+        
+        try {
+            const verificationKey = await deriveKey(currentPassword, salt);
+            await loadAccounts(verificationKey, currentUser);
+        } catch (error) {
+            console.error("A verificação da senha atual falhou:", error);
+            throw new Error("A senha atual está incorreta.");
+        }
+
+        const newKey = await deriveKey(newPassword, salt);
+        await saveAccounts(accounts, newKey, currentUser);
+        
+        setMasterKey(newKey);
+    };
+
 
     const persistAccounts = useCallback(async (updatedAccounts: Account[]) => {
         if (!masterKey || !currentUser) return;
@@ -106,11 +188,25 @@ const App: React.FC = () => {
     };
 
     if (!currentUser) {
-        return <AuthScreen 
+        return (
+            <>
+                <AuthScreen 
                     onLogin={handleLogin} 
                     onRegister={handleRegister}
+                    onAdminLogin={handleAdminLogin}
                     error={error} 
-                />;
+                />
+                {isAdminPanelOpen && (
+                    <AdminPanel
+                        currentUserEmail={getAdminUser()}
+                        onClose={() => {
+                            setIsAdminPanelOpen(false);
+                            setError(null); // Limpa erros ao fechar o painel
+                        }}
+                    />
+                )}
+            </>
+        );
     }
 
     const filteredAccounts = accounts.filter(account =>
@@ -128,13 +224,22 @@ const App: React.FC = () => {
                     </h1>
                     <p className="text-sm text-gray-400">Bem-vindo, {currentUser}</p>
                  </div>
-                <button
-                    onClick={handleLogout}
-                    className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-                    aria-label="Logout"
-                >
-                    <ArrowRightOnRectangleIcon className="w-6 h-6" />
-                </button>
+                 <div className="flex items-center space-x-2">
+                    <button
+                        onClick={() => setIsChangePasswordModalOpen(true)}
+                        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                        aria-label="User Settings"
+                    >
+                        <UserCircleIcon className="w-6 h-6" />
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                        aria-label="Logout"
+                    >
+                        <ArrowRightOnRectangleIcon className="w-6 h-6" />
+                    </button>
+                 </div>
             </header>
             
             <main className="w-full max-w-2xl flex-grow">
@@ -173,6 +278,12 @@ const App: React.FC = () => {
                     onClose={() => setIsAddModalOpen(false)}
                     onAddAccount={addAccount}
                     onAddMultipleAccounts={addMultipleAccounts}
+                />
+            )}
+            {isChangePasswordModalOpen && (
+                <ChangePasswordModal
+                    onClose={() => setIsChangePasswordModalOpen(false)}
+                    onChangePassword={handleChangePassword}
                 />
             )}
         </div>

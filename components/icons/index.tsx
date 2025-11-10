@@ -56,7 +56,7 @@ export const EyeSlashIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => 
 
 export const CameraIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <Icon {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.776 48.776 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.776 48.776 0 0 0-5.5232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
     </Icon>
 );
@@ -112,5 +112,36 @@ export const DocumentArrowUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (pro
 export const EnvelopeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <Icon {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+    </Icon>
+);
+
+export const UserCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </Icon>
+);
+
+export const PencilSquareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+    </Icon>
+);
+
+export const UserMinusIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </Icon>
+);
+
+export const Cog6ToothIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-1.003 1.11-1.226.55-.223 1.159-.223 1.71 0 .55.223 1.02.684 1.11 1.226l.078.469c.07.424.27.8.544 1.106.274.306.63.522 1.02.618.39.096.79.117 1.18.061.542-.065 1.058.193 1.357.648.299.455.33 1.034.084 1.523-.245.488-.698.856-1.226 1.003-.43.123-.84.284-1.208.498-.368.213-.65.503-.834.834-.185.33-.298.71-.328 1.102l-.054.469c-.09.542-.56 1.003-1.11 1.226-.55-.223-1.159-.223-1.71 0-.55-.223-1.02-.684-1.11-1.226l-.078-.469c-.07-.424-.27-.8-.544-1.106-.274-.306-.63-.522-1.02-.618-.39-.096-.79-.117-1.18-.061-.542-.065-1.058-.193-1.357-.648-.299-.455-.33-1.034-.084-1.523.245.488.698.856-1.226 1.003.43-.123.84-.284 1.208-.498.368.213.65.503.834.834.185.33.298.71.328 1.102l.054-.469z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </Icon>
+);
+
+export const ArrowLeftIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
     </Icon>
 );
