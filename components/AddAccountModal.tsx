@@ -63,20 +63,20 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ onClose, onAddAccount
     const bytesToBase32 = (bytes: Uint8Array): string => {
         const base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
         let bits = "";
-        let base32 = "";
-
         for (let i = 0; i < bytes.length; i++) {
             bits += bytes[i].toString(2).padStart(8, '0');
         }
 
+        let base32 = "";
         for (let i = 0; i < bits.length; i += 5) {
             const chunk = bits.slice(i, i + 5);
-            if (chunk.length === 5) {
-                const value = parseInt(chunk, 2);
-                base32 += base32Chars[value];
-            }
+            const paddedChunk = chunk.padEnd(5, '0');
+            const value = parseInt(paddedChunk, 2);
+            base32 += base32Chars[value];
         }
-        return base32;
+        
+        const expectedLen = Math.ceil(bytes.length * 8 / 5);
+        return base32.substring(0, expectedLen);
     };
 
     const handleQrScan = (data: string) => {

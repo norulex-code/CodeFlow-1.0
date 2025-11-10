@@ -1,5 +1,5 @@
 {
-  "name": "Copy of  CodeFlow Authenticator 1.0",
+  "name": "CodeFlow Authenticator 1.1",
   "description": "A TOTP (Time-based One-Time Password) authenticator web application to manage your 2FA codes. Add accounts via QR code or manual entry and easily copy codes. This app stores your secret keys encrypted in your browser's local storage.",
   "requestFramePermissions": []
 }
