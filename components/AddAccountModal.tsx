@@ -346,11 +346,11 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ onClose, onAddAccount
             </div>
             <div>
                 <label htmlFor="accountUsername" className="block text-sm font-medium text-gray-300 mb-1">Nome de Usuário (Opcional)</label>
-                <input type="text" id="accountUsername" value={username} onChange={e => setUsername(e.target.value)} placeholder="Seu usuário para este serviço" className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                <input type="text" id="accountUsername" value={username} onChange={e => setUsername(e.target.value)} placeholder="Seu usuário para este serviço" className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" autoComplete="username" />
             </div>
             <div>
                 <label htmlFor="accountPassword" className="block text-sm font-medium text-gray-300 mb-1">Senha (Opcional)</label>
-                <input type="password" id="accountPassword" value={password} onChange={e => setPassword(e.target.value)} placeholder="Sua senha para este serviço" className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                <input type="password" id="accountPassword" value={password} onChange={e => setPassword(e.target.value)} placeholder="Sua senha para este serviço" className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" autoComplete="current-password" />
             </div>
             <div className={`flex flex-col sm:flex-row gap-2 pt-2`}>
                 <button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors">

@@ -117,6 +117,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose }) => {
                                 onChange={(e) => setNewEmail(e.target.value)}
                                 className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                 required
+                                autoComplete="email"
                             />
                         </div>
                     </div>
@@ -131,6 +132,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose }) => {
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 placeholder="Mínimo 8 caracteres"
                                 className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                autoComplete="new-password"
                             />
                         </div>
                         {newPassword && <p className="text-xs text-yellow-400 mt-2">Atenção: Redefinir a senha irá apagar todas as contas 2FA do usuário.</p>}

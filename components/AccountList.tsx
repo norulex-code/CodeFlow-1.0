@@ -6,9 +6,10 @@ import AccountCard from './AccountCard';
 interface AccountListProps {
     accounts: Account[];
     onDelete: (id: string) => void;
+    onEdit: (account: Account) => void;
 }
 
-const AccountList: React.FC<AccountListProps> = ({ accounts, onDelete }) => {
+const AccountList: React.FC<AccountListProps> = ({ accounts, onDelete, onEdit }) => {
     if (accounts.length === 0) {
         return (
             <div className="text-center p-10 border-2 border-dashed border-gray-600 rounded-lg">
@@ -21,7 +22,7 @@ const AccountList: React.FC<AccountListProps> = ({ accounts, onDelete }) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {accounts.map(account => (
-                <AccountCard key={account.id} account={account} onDelete={onDelete} />
+                <AccountCard key={account.id} account={account} onDelete={onDelete} onEdit={onEdit} />
             ))}
         </div>
     );

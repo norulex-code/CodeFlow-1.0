@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Account } from '../types';
 import { useTotp } from '../hooks/useTotp';
-import { TrashIcon, ClipboardIcon, CheckIcon, UserIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from './icons';
+import { TrashIcon, ClipboardIcon, CheckIcon, UserIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, PencilIcon } from './icons';
 
 interface AccountCardProps {
     account: Account;
     onDelete: (id: string) => void;
+    onEdit: (account: Account) => void;
 }
 
-const AccountCard: React.FC<AccountCardProps> = ({ account, onDelete }) => {
+const AccountCard: React.FC<AccountCardProps> = ({ account, onDelete, onEdit }) => {
     const { code, timeLeft, period } = useTotp(account.secret);
     const [codeCopied, setCodeCopied] = useState(false);
     const [usernameCopied, setUsernameCopied] = useState(false);
@@ -113,16 +114,23 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onDelete }) => {
                 </div>
                 <div className="flex space-x-2">
                     <button
+                        onClick={() => onEdit(account)}
+                        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                        aria-label="Editar conta"
+                    >
+                        <PencilIcon className="w-5 h-5" />
+                    </button>
+                    <button
                         onClick={handleCopyCode}
                         className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-                        aria-label="Copy code"
+                        aria-label="Copiar código"
                     >
                         {codeCopied ? <CheckIcon className="w-5 h-5 text-green-400" /> : <ClipboardIcon className="w-5 h-5" />}
                     </button>
                     <button
                         onClick={() => onDelete(account.id)}
                         className="p-2 rounded-full hover:bg-red-800/50 text-red-400 transition-colors"
-                        aria-label="Delete account"
+                        aria-label="Excluir conta"
                     >
                         <TrashIcon className="w-5 h-5" />
                     </button>

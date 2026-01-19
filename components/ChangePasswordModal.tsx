@@ -37,10 +37,10 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ onClose, onCh
         setIsLoading(true);
         try {
             await onChangePassword(currentPassword, newPassword);
-            setSuccess("Senha alterada com sucesso!");
+            setSuccess("Senha alterada com sucesso! Salve a nova senha em seu navegador ou gerenciador para usar o preenchimento automático com biometria (facial, digital).");
             setTimeout(() => {
                 onClose();
-            }, 2000);
+            }, 5000);
         } catch (err: any) {
             setError(err.message || "Ocorreu um erro desconhecido.");
         } finally {
@@ -115,7 +115,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ onClose, onCh
                     </form>
                 ) : (
                     <div className="p-6 text-center">
-                        <p className="text-green-400 text-lg">{success}</p>
+                        <p className="text-green-400 text-base">{success}</p>
                     </div>
                 )}
             </div>

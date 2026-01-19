@@ -1,20 +1,20 @@
+
 export const generateSalt = (): { salt: Uint8Array, saltHex: string } => {
     const salt = window.crypto.getRandomValues(new Uint8Array(16));
     const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
     return { salt, saltHex };
-}
+};
 
 export const deriveKey = async (password: string, salt: Uint8Array): Promise<CryptoKey> => {
-    const encoder = new TextEncoder();
     const keyMaterial = await window.crypto.subtle.importKey(
         'raw',
-        encoder.encode(password),
+        new TextEncoder().encode(password),
         { name: 'PBKDF2' },
         false,
         ['deriveKey']
     );
 
-    return await window.crypto.subtle.deriveKey(
+    return window.crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
             salt: salt,
@@ -66,4 +66,18 @@ export const decrypt = async (encryptedStr: string, key: CryptoKey): Promise<str
 
     const decoder = new TextDecoder();
     return decoder.decode(decryptedData);
+};
+
+export const exportMasterKey = async (key: CryptoKey): Promise<JsonWebKey> => {
+    return window.crypto.subtle.exportKey('jwk', key);
+};
+
+export const importMasterKey = async (keyData: JsonWebKey): Promise<CryptoKey> => {
+    return window.crypto.subtle.importKey(
+        'jwk',
+        keyData,
+        { name: 'AES-GCM' },
+        true,
+        ['encrypt', 'decrypt']
+    );
 };

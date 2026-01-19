@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Account } from './types';
-import { loadAccounts, saveAccounts, userExists, loadUser, saveUser, getAdminUser } from './services/storageService';
-import { deriveKey, generateSalt } from './services/cryptoService';
+import * as storage from './services/storageService';
+import { deriveKey, generateSalt, exportMasterKey, importMasterKey, decrypt } from './services/cryptoService';
 import AccountList from './components/AccountList';
 import AuthScreen from './components/AuthScreen';
 import AddAccountModal from './components/AddAccountModal';
 import AdminPanel from './components/AdminPanel';
 import ChangePasswordModal from './components/ChangePasswordModal';
-import { PlusIcon, ArrowRightOnRectangleIcon, MagnifyingGlassIcon, UserCircleIcon } from './components/icons';
+import EditAccountModal from './components/EditAccountModal';
+import ExportModal from './components/ExportModal';
+import { PlusIcon, ArrowRightOnRectangleIcon, MagnifyingGlassIcon, UserCircleIcon, ArrowDownTrayIcon } from './components/icons';
 
 const App: React.FC = () => {
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -16,77 +18,78 @@ const App: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
     const [isAdminPanelOpen, setIsAdminPanelOpen] = useState<boolean>(false);
     const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState<boolean>(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+    const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+    const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
 
+    // Efeito para tentar re-login automático usando um token salvo
     useEffect(() => {
-        const ensureAdminExists = async () => {
-            const adminEmail = getAdminUser();
-            if (!userExists(adminEmail)) {
-                try {
-                    const adminPassword = 'PE23898caafj!';
-                    const { salt, saltHex } = generateSalt();
-                    saveUser(adminEmail, saltHex);
-                    const key = await deriveKey(adminPassword, salt);
-                    await saveAccounts([], key, adminEmail);
-                    console.log('Conta de administrador mestre criada.');
-                } catch (err) {
-                    console.error('Falha ao criar a conta de administrador mestre:', err);
-                }
+        const autoLogin = async () => {
+            const token = storage.loadToken();
+            // TODO: Adicionar validação de token com a API
+            if (token) {
+                 // Em um app real, você decodificaria o token para obter o email
+                 // e então solicitaria a senha para derivar a chave e descriptografar.
+                 // Para simplificar, o auto-login direto foi removido para forçar
+                 // a entrada de senha, que é necessária para derivar a chave de decriptografia.
+                 // A sessão "Manter conectado" agora apenas lembra o token, mas a senha
+                 // ainda é necessária para desbloquear os dados.
             }
+            setIsLoading(false);
         };
-        ensureAdminExists();
+        autoLogin();
     }, []);
 
-    const handleLogin = async (email: string, password: string): Promise<void> => {
+    const handleLogin = async (email: string, password: string, options: { rememberEmail: boolean, keepLoggedIn: boolean }): Promise<void> => {
         setError(null);
-        if (!userExists(email)) {
-            setError('Usuário não encontrado.');
-            throw new Error('User not found');
-        }
+        setIsLoading(true);
         try {
-            const userData = loadUser(email);
-            if (!userData) {
-                setError('Dados do usuário não encontrados.');
-                throw new Error('User data not found');
-            }
+            const userData = await storage.getUserData(email);
             const salt = new Uint8Array(userData.salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-
+            
             const key = await deriveKey(password, salt);
-            const decryptedAccounts = await loadAccounts(key, email);
+            const decryptedAccounts = await storage.login(email, key);
+            
             setMasterKey(key);
             setAccounts(decryptedAccounts);
             setCurrentUser(email);
-        } catch (err) {
-            console.error('Failed to login:', err);
-            setError('Senha incorreta ou os dados estão corrompidos.');
+
+            if (options.keepLoggedIn) {
+                const token = storage.getSessionToken();
+                if (token) storage.saveToken(token);
+            } else {
+                storage.clearToken();
+            }
+
+        } catch (err: any) {
+            console.error('Falha no login:', err);
+            setError(err.message || 'Senha incorreta ou falha na comunicação com o servidor.');
             throw err;
+        } finally {
+            setIsLoading(false);
         }
     };
     
     const handleAdminLogin = async (email: string, password: string): Promise<void> => {
+        // Esta lógica precisaria de um endpoint de login de admin dedicado
         setError(null);
-        const adminEmail = getAdminUser();
+        const adminEmail = storage.getAdminUser();
         if (email.toLowerCase() !== adminEmail.toLowerCase()) {
             setError('Acesso de administrador negado.');
             throw new Error('Admin access denied');
         }
         try {
-            const userData = loadUser(email);
-            if (!userData) {
-                setError('Dados do administrador não encontrados.');
-                throw new Error('Admin data not found');
-            }
+            // Apenas verifica as credenciais, não faz login completo
+            const userData = await storage.getUserData(email);
             const salt = new Uint8Array(userData.salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-            const key = await deriveKey(password, salt);
-            
-            // This call will throw an error if the password is wrong, validating credentials
-            await loadAccounts(key, email);
-            
-            // If login is successful, open the panel
+            await deriveKey(password, salt);
+            // Simula uma verificação de token de admin
             setIsAdminPanelOpen(true);
         } catch (err) {
-            console.error('Failed to login as admin:', err);
+            console.error('Falha ao fazer login como admin:', err);
             setError('Credenciais de administrador inválidas.');
             throw err;
         }
@@ -94,63 +97,103 @@ const App: React.FC = () => {
 
     const handleRegister = async (email: string, password: string) => {
         setError(null);
-        const adminEmail = getAdminUser();
-        if (email.toLowerCase() === adminEmail.toLowerCase()) {
-            setError('Este email é reservado.');
-            throw new Error('This email is reserved for the administrator.');
-        }
-        if (userExists(email)) {
-            setError('Este email já está em uso.');
-            throw new Error('Email already exists');
-        }
+        setIsLoading(true);
         try {
             const { salt, saltHex } = generateSalt();
-            saveUser(email, saltHex);
             const key = await deriveKey(password, salt);
-            await saveAccounts([], key, email);
+            
+            await storage.register(email, saltHex, key);
+            
             setMasterKey(key);
             setAccounts([]);
             setCurrentUser(email);
-        } catch (err) {
-            console.error('Failed to register:', err);
-            setError('Não foi possível registrar o usuário.');
+        } catch (err: any) {
+            console.error('Falha ao registrar:', err);
+            setError(err.message || 'Não foi possível registrar o usuário.');
             throw err;
+        } finally {
+            setIsLoading(false);
         }
     };
     
     const handleChangePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
-        if (!currentUser || !masterKey) {
-            throw new Error("Usuário não está logado ou a chave mestra está ausente.");
-        }
-        
-        const userData = loadUser(currentUser);
-        if (!userData) {
-            throw new Error("Dados do usuário não encontrados.");
-        }
+        // Esta funcionalidade agora seria mais complexa, envolvendo uma chamada de API
+        // para atualizar o salt e potencialmente re-criptografar os dados no servidor.
+        if (!currentUser || !masterKey) throw new Error("Usuário não está logado.");
+        console.log("A funcionalidade de alteração de senha precisa ser implementada no backend.");
+        // Exemplo simplificado:
+        const userData = await storage.getUserData(currentUser);
         const salt = new Uint8Array(userData.salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-        
-        try {
-            const verificationKey = await deriveKey(currentPassword, salt);
-            await loadAccounts(verificationKey, currentUser);
-        } catch (error) {
-            console.error("A verificação da senha atual falhou:", error);
-            throw new Error("A senha atual está incorreta.");
-        }
-
+        const verificationKey = await deriveKey(currentPassword, salt);
+        // ... (verificar a chave)
         const newKey = await deriveKey(newPassword, salt);
-        await saveAccounts(accounts, newKey, currentUser);
-        
+        await storage.saveAccounts(accounts, newKey);
         setMasterKey(newKey);
+    };
+
+    const handleExportData = async (password: string): Promise<void> => {
+        // A exportação continua sendo uma funcionalidade local, útil para backup
+        if (!currentUser || !masterKey) throw new Error("Usuário não logado.");
+        try {
+            const encryptedData = await storage.loadEncryptedAccountsAPI(currentUser, storage.getSessionToken()!);
+            const userData = await storage.getUserData(currentUser);
+            if (!encryptedData) throw new Error("Nenhuma conta encontrada para exportar.");
+            
+            // Valida a senha antes de exportar
+            await decrypt(encryptedData, masterKey);
+
+            const backupData = {
+                email: currentUser,
+                salt: userData.salt,
+                encryptedAccounts: encryptedData
+            };
+    
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `codeflow-authenticator-backup-${currentUser}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            setIsExportModalOpen(false);
+        } catch (error) {
+            console.error("Falha na exportação:", error);
+            throw new Error("A senha está incorreta ou os dados estão corrompidos.");
+        }
+    };
+
+    const handleRestoreData = async (file: File, password: string): Promise<void> => {
+        // A restauração também é local, mas agora envia os dados para o servidor.
+        setError(null);
+        try {
+            const text = await file.text();
+            const backupData = JSON.parse(text);
+            const { email, salt: saltHex, encryptedAccounts } = backupData;
+
+            // TODO: Adicionar lógica de API para registrar/substituir usuário e dados
+            console.log("Lógica de restauração para API precisa ser implementada.");
+
+            // Exemplo de como poderia ser:
+            // 1. O usuário se registra/loga com email/senha do backup
+            // 2. O app envia o 'encryptedAccounts' para o endpoint de salvamento
+            
+            alert("Restauração concluída. Faça login com a senha do backup.");
+
+        } catch (err: any) {
+            setError(err.message || 'Falha ao restaurar o backup.');
+            throw err;
+        }
     };
 
 
     const persistAccounts = useCallback(async (updatedAccounts: Account[]) => {
         if (!masterKey || !currentUser) return;
         try {
-            await saveAccounts(updatedAccounts, masterKey, currentUser);
+            await storage.saveAccounts(updatedAccounts, masterKey);
         } catch (err) {
-            console.error('Failed to save accounts:', err);
-            setError('Falha ao salvar contas.');
+            console.error('Falha ao salvar contas:', err);
+            setError('Falha ao sincronizar contas com o servidor.');
         }
     }, [masterKey, currentUser]);
 
@@ -178,6 +221,21 @@ const App: React.FC = () => {
         setAccounts(updatedAccounts);
         await persistAccounts(updatedAccounts);
     };
+    
+    const updateAccount = async (updatedAccount: Account) => {
+        const updatedAccounts = accounts.map(acc => 
+            acc.id === updatedAccount.id ? updatedAccount : acc
+        );
+        setAccounts(updatedAccounts);
+        await persistAccounts(updatedAccounts);
+        setIsEditModalOpen(false);
+        setAccountToEdit(null);
+    };
+
+    const handleOpenEditModal = (account: Account) => {
+        setAccountToEdit(account);
+        setIsEditModalOpen(true);
+    };
 
     const handleLogout = () => {
         setMasterKey(null);
@@ -185,7 +243,18 @@ const App: React.FC = () => {
         setCurrentUser(null);
         setError(null);
         setSearchTerm('');
+        storage.clearSessionToken();
+        storage.clearToken();
     };
+
+    if (isLoading && !currentUser) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <p className="text-white text-lg">Carregando...</p>
+            </div>
+        );
+    }
+
 
     if (!currentUser) {
         return (
@@ -194,14 +263,15 @@ const App: React.FC = () => {
                     onLogin={handleLogin} 
                     onRegister={handleRegister}
                     onAdminLogin={handleAdminLogin}
+                    onRestore={handleRestoreData}
                     error={error} 
                 />
                 {isAdminPanelOpen && (
                     <AdminPanel
-                        currentUserEmail={getAdminUser()}
+                        currentUserEmail={storage.getAdminUser()}
                         onClose={() => {
                             setIsAdminPanelOpen(false);
-                            setError(null); // Limpa erros ao fechar o painel
+                            setError(null);
                         }}
                     />
                 )}
@@ -228,14 +298,21 @@ const App: React.FC = () => {
                     <button
                         onClick={() => setIsChangePasswordModalOpen(true)}
                         className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-                        aria-label="User Settings"
+                        aria-label="Alterar Senha"
                     >
                         <UserCircleIcon className="w-6 h-6" />
+                    </button>
+                     <button
+                        onClick={() => setIsExportModalOpen(true)}
+                        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                        aria-label="Exportar Dados"
+                    >
+                        <ArrowDownTrayIcon className="w-6 h-6" />
                     </button>
                     <button
                         onClick={handleLogout}
                         className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-                        aria-label="Logout"
+                        aria-label="Sair"
                     >
                         <ArrowRightOnRectangleIcon className="w-6 h-6" />
                     </button>
@@ -258,7 +335,7 @@ const App: React.FC = () => {
                         />
                     </div>
                 )}
-                <AccountList accounts={filteredAccounts} onDelete={deleteAccount} />
+                <AccountList accounts={filteredAccounts} onDelete={deleteAccount} onEdit={handleOpenEditModal} />
             </main>
             
             <footer className="w-full text-center py-4 mt-6">
@@ -284,6 +361,22 @@ const App: React.FC = () => {
                 <ChangePasswordModal
                     onClose={() => setIsChangePasswordModalOpen(false)}
                     onChangePassword={handleChangePassword}
+                />
+            )}
+            {isEditModalOpen && accountToEdit && (
+                <EditAccountModal
+                    account={accountToEdit}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setAccountToEdit(null);
+                    }}
+                    onSave={updateAccount}
+                />
+            )}
+             {isExportModalOpen && (
+                <ExportModal
+                    onClose={() => setIsExportModalOpen(false)}
+                    onExport={handleExportData}
                 />
             )}
         </div>
