@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LockClosedIcon, EyeIcon, EyeSlashIcon, EnvelopeIcon, Cog6ToothIcon, ArrowLeftIcon, DocumentArrowUpIcon } from './icons';
+import { LockClosedIcon, EyeIcon, EyeSlashIcon, EnvelopeIcon, Cog6ToothIcon, ArrowLeftIcon, DocumentArrowUpIcon, SunIcon, MoonIcon } from './icons';
 import { deleteUser, userExists, getAdminUser, loadRememberedEmail } from '../services/storageService';
 
 interface AuthScreenProps {
@@ -8,11 +8,13 @@ interface AuthScreenProps {
     onAdminLogin: (email: string, password: string) => Promise<void>;
     onRestore: (file: File, password: string) => Promise<void>;
     error: string | null;
+    theme?: 'dark' | 'light';
+    onToggleTheme?: () => void;
 }
 
 type View = 'login' | 'register' | 'admin' | 'restore';
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLogin, onRestore, error }) => {
+const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLogin, onRestore, error, theme = 'dark', onToggleTheme }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,6 +26,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLog
     const [isLoading, setIsLoading] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
+
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     useEffect(() => {
         const remembered = loadRememberedEmail();
@@ -76,12 +80,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLog
                 await onRestore(backupFile, password);
             }
             else { // register
-                const adminEmail = getAdminUser();
-                if (adminEmail && email.toLowerCase() === adminEmail.toLowerCase()) {
-                    setLocalError("Este email é reservado.");
-                    setIsLoading(false);
-                    return;
-                }
                 if (password !== confirmPassword) {
                     setLocalError("As senhas não coincidem.");
                     setIsLoading(false);
@@ -121,15 +119,16 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLog
             return;
         }
 
-        const confirmation = window.confirm(
-            `Tem certeza que deseja resetar a conta para o usuário "${email}"?\n\nTodos os dados, incluindo suas contas 2FA, serão permanentemente apagados. Esta ação não pode ser desfeita.`
-        );
-
-        if (confirmation) {
-            deleteUser(email);
-            setNotification('Conta resetada com sucesso. Por favor, registre-se novamente com uma nova senha.');
-            switchView('register');
+        if (!showResetConfirm) {
+            setShowResetConfirm(true);
+            setNotification('Clique novamente em "Esqueceu a senha?" para confirmar o reset TOTAL da sua conta. Isso apagará todos os seus dados permanentemente.');
+            return;
         }
+
+        deleteUser(email);
+        setNotification('Conta resetada com sucesso. Por favor, registre-se novamente com uma nova senha.');
+        setShowResetConfirm(false);
+        switchView('register');
     };
 
     const passwordInput = (value: string, setter: React.Dispatch<React.SetStateAction<string>>, placeholder: string, id: string, autoComplete: string) => (
@@ -163,21 +162,44 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLog
     };
 
     const descriptions: Record<View, string> = {
-        login: 'Faça login para acessar suas contas.',
+        login: 'By Carlos Arthur Ferrão Júnior.',
         register: 'Crie uma conta para começar.',
         admin: 'Login para gerenciar usuários.',
         restore: 'Importe suas contas de um arquivo de backup.'
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4 relative">
+            {onToggleTheme && (
+                <div className="absolute top-4 right-4 z-10">
+                    <button
+                        type="button"
+                        onClick={onToggleTheme}
+                        className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-all shadow-md text-xs font-semibold text-gray-200"
+                        title={theme === 'dark' ? "Ativar Modo Dia (Contraste Claro)" : "Ativar Modo Noite (Contraste Escuro)"}
+                        aria-label={theme === 'dark' ? "Ativar Modo Dia" : "Ativar Modo Noite"}
+                    >
+                        {theme === 'dark' ? (
+                            <>
+                                <SunIcon className="w-4 h-4 text-amber-400" />
+                                <span>Contraste: Dia</span>
+                            </>
+                        ) : (
+                            <>
+                                <MoonIcon className="w-4 h-4 text-cyan-500" />
+                                <span>Contraste: Noite</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
             <div className="w-full max-w-md p-8 space-y-8 bg-gray-800 rounded-2xl shadow-lg">
                 <div className="text-center">
                     <LockClosedIcon className="mx-auto h-12 w-12 text-cyan-400" />
                     <h2 className="mt-6 text-3xl font-extrabold text-white">
                         {titles[view]}
                     </h2>
-                    <p className="mt-2 text-sm text-gray-400">
+                    <p className={`mt-2 text-sm ${view === 'login' ? 'text-cyan-400 font-medium' : 'text-gray-400'}`}>
                        {descriptions[view]}
                     </p>
                 </div>
@@ -236,7 +258,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLog
                                         className="h-4 w-4 rounded border-gray-500 bg-gray-700 text-cyan-600 focus:ring-cyan-500 disabled:opacity-50"
                                     />
                                     <label htmlFor="remember-email" className={`ml-2 block ${keepLoggedIn ? 'text-gray-500' : 'text-gray-300'}`}>
-                                        Lembrar email
+                                        Lembrar meu e-mail
                                     </label>
                                 </div>
                                 <button
@@ -286,7 +308,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onAdminLog
                         {view === 'login' && (
                             <>
                                 <button type="button" onClick={() => switchView('register')} className="font-medium text-cyan-400 hover:text-cyan-300">
-                                    Não tem uma conta? Registre-se
+                                    Não tem uma conta? Cadastre-se agora
                                 </button>
                                 <div className="border-t border-gray-700 my-2"></div>
                                  <button type="button" onClick={() => switchView('restore')} className="font-medium text-gray-400 hover:text-gray-200 flex items-center justify-center w-full pt-2">

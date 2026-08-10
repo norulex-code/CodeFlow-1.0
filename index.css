@@ -1,0 +1,138 @@
+/* High Contrast Light Theme & Global Styles */
+
+html[data-theme="light"],
+body.light-mode {
+  color-scheme: light;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .bg-gray-900,
+body.light-mode .bg-gray-900 {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .bg-gray-800,
+body.light-mode .bg-gray-800 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] .bg-gray-700,
+body.light-mode .bg-gray-700 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] .bg-gray-700\/50,
+html[data-theme="light"] .bg-gray-700\/60,
+html[data-theme="light"] .bg-gray-700\/40,
+body.light-mode .bg-gray-700\/50,
+body.light-mode .bg-gray-700\/60,
+body.light-mode .bg-gray-700\/40 {
+  background-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .bg-gray-800\/90,
+body.light-mode .bg-gray-800\/90 {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+}
+
+html[data-theme="light"] .border-gray-700,
+html[data-theme="light"] .border-gray-600,
+body.light-mode .border-gray-700,
+body.light-mode .border-gray-600 {
+  border-color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] .text-white,
+html[data-theme="light"] .text-gray-100,
+html[data-theme="light"] .text-gray-200,
+body.light-mode .text-white,
+body.light-mode .text-gray-100,
+body.light-mode .text-gray-200 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .text-gray-300,
+html[data-theme="light"] .text-gray-400,
+body.light-mode .text-gray-300,
+body.light-mode .text-gray-400 {
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .text-gray-500,
+body.light-mode .text-gray-500 {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .text-cyan-400,
+body.light-mode .text-cyan-400 {
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme="light"] .text-cyan-300,
+body.light-mode .text-cyan-300 {
+  color: #0369a1 !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="light"] .bg-cyan-600,
+body.light-mode .bg-cyan-600 {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .bg-cyan-500,
+body.light-mode .bg-cyan-500 {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .hover\:bg-gray-700:hover,
+body.light-mode .hover\:bg-gray-700:hover {
+  background-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea,
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+html[data-theme="light"] input::placeholder,
+body.light-mode input::placeholder {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .bg-black\/75,
+body.light-mode .bg-black\/75 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+html[data-theme="light"] .stroke-gray-600,
+body.light-mode .stroke-gray-600 {
+  stroke: #cbd5e1 !important;
+}
+
+/* Tooltip light mode */
+html[data-theme="light"] .bg-gray-700,
+body.light-mode .bg-gray-700 {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .bg-gray-700 > div,
+body.light-mode .bg-gray-700 > div {
+  background-color: #334155 !important;
+}

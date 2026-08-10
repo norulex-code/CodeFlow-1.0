@@ -1,19 +1,25 @@
 import React, { useState } from 'react';
 import { Account } from '../types';
-import { XMarkIcon } from './icons';
+import { XMarkIcon, InformationCircleIcon } from './icons';
 
 interface EditAccountModalProps {
     account: Account;
     onClose: () => void;
     onSave: (updatedAccount: Account) => void;
+    existingAccounts: Account[];
 }
 
-const EditAccountModal: React.FC<EditAccountModalProps> = ({ account, onClose, onSave }) => {
+const EditAccountModal: React.FC<EditAccountModalProps> = ({ account, onClose, onSave, existingAccounts }) => {
     const [issuer, setIssuer] = useState(account.issuer);
     const [name, setName] = useState(account.name);
     const [username, setUsername] = useState(account.username || '');
     const [password, setPassword] = useState(account.password || '');
     const [error, setError] = useState<string | null>(null);
+
+    const isDuplicate = () => {
+        const currentIssuer = issuer.trim() || name.trim();
+        return existingAccounts.some(acc => acc.id !== account.id && acc.issuer === currentIssuer && acc.name === name.trim());
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,6 +54,12 @@ const EditAccountModal: React.FC<EditAccountModalProps> = ({ account, onClose, o
                     <div>
                         <label htmlFor="edit-name" className="block text-sm font-medium text-gray-300 mb-1">Nome da Conta</label>
                         <input type="text" id="edit-name" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: email@example.com" className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" required />
+                        {isDuplicate() && (
+                            <p className="text-xs text-yellow-400 mt-1 flex items-center gap-1">
+                                <InformationCircleIcon className="w-3 h-3" />
+                                Uma conta com este emissor e nome já existe. Ela será renomeada automaticamente ao salvar.
+                            </p>
+                        )}
                     </div>
                     <div>
                         <label htmlFor="edit-username" className="block text-sm font-medium text-gray-300 mb-1">Nome de Usuário (Opcional)</label>

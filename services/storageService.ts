@@ -160,24 +160,41 @@ export const saveAccounts = async (accounts: Account[], key: CryptoKey, adminTar
     }
 
     // Normal user path
-    if (!sessionToken) throw new Error("Não autenticado. Impossível salvar contas.");
+    if (!sessionToken) {
+        throw new Error("Não autenticado. Impossível salvar contas.");
+    }
     const data = JSON.stringify(accounts);
     const encryptedData = await encrypt(data, key);
     await saveAccountsAPI(encryptedData, sessionToken);
 };
 
 
-// --- Funções de administrador e outras (precisariam de endpoints de API) ---
+// Simula a restauração de um usuário a partir de um backup
+export const restoreUserAPI = async (email: string, saltHex: string, encryptedAccounts: string): Promise<void> => {
+    console.log('restoreUserAPI chamando para:', email);
+    const db = loadDatabase();
+    const lowerEmail = email.toLowerCase();
+    
+    const newUser: StoredUser = { 
+        email, 
+        salt: saltHex, 
+        encryptedAccounts: encryptedAccounts 
+    };
+    
+    db[lowerEmail] = newUser;
+    saveDatabase(db);
+    console.log('Usuário restaurado no localStorage:', lowerEmail);
+};
 // Estas funções foram implementadas para usar o localStorage como um backend simulado.
 
 export const getAdminUser = (): string => {
-    return 'norulex@gmail.com'; // Pode ser definido no backend
+    return 'arthur.ferrao@gmail.com'; // Administrador master
 };
 
 // Esta função agora buscaria os dados do usuário do localStorage
 export const getUserData = async (email: string): Promise<UserData> => {
      const user = loadUser(email);
-     if(!user) throw new Error("Usuário não encontrado para obter o salt.");
+     if(!user) throw new Error("Usuário não encontrado. Se você é novo, por favor, cadastre-se primeiro.");
      return { email: user.email, salt: user.salt };
 }
 

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF--8" />
+    <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CodeFlow Authenticator</title>
@@ -19,15 +19,36 @@
 }
 </script>
 <style>
-  @keyframes code-refresh-flash {
-    0% { background-color: transparent; }
-    50% { background-color: rgba(34, 211, 238, 0.15); }
-    100% { background-color: transparent; }
+  @keyframes code-fade-in {
+    0% { opacity: 0; transform: translateY(4px); filter: brightness(1.5); }
+    100% { opacity: 1; transform: translateY(0); filter: brightness(1); }
   }
-  .animate-code-flash {
-    animation: code-refresh-flash 0.7s ease-in-out;
+  @keyframes pulse-critical {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.02); opacity: 0.8; }
+  }
+  .animate-code-refresh {
+    animation: code-fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .animate-pulse-critical {
+    animation: pulse-critical 1s ease-in-out infinite;
+  }
+  #qr-camera-viewport video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 0.5rem;
+  }
+  #qr-camera-viewport {
+    border: none !important;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  #qr-camera-viewport img {
+    display: none !important;
   }
 </style>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-gray-900 text-white">
     <div id="root"></div>

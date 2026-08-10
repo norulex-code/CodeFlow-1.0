@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Account } from './types';
 import * as storage from './services/storageService';
@@ -9,7 +10,11 @@ import AdminPanel from './components/AdminPanel';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import EditAccountModal from './components/EditAccountModal';
 import ExportModal from './components/ExportModal';
-import { PlusIcon, ArrowRightOnRectangleIcon, MagnifyingGlassIcon, UserCircleIcon, ArrowDownTrayIcon } from './components/icons';
+import DeleteConfirmationModal from './components/DeleteConfirmationModal';
+import Tooltip from './components/Tooltip';
+import HelpModal from './components/HelpModal';
+import AutofillHelper from './components/AutofillHelper';
+import { PlusIcon, ArrowRightOnRectangleIcon, MagnifyingGlassIcon, UserCircleIcon, ArrowDownTrayIcon, InformationCircleIcon, SunIcon, MoonIcon } from './components/icons';
 
 const App: React.FC = () => {
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -20,23 +25,38 @@ const App: React.FC = () => {
     const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState<boolean>(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
     const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+    const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
     const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
+    const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+        const saved = localStorage.getItem('app_theme');
+        return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+    });
 
-    // Efeito para tentar re-login automático usando um token salvo
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'light') {
+            document.body.classList.add('light-mode');
+            document.body.classList.remove('dark-mode');
+        } else {
+            document.body.classList.add('dark-mode');
+            document.body.classList.remove('light-mode');
+        }
+        localStorage.setItem('app_theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    };
+
     useEffect(() => {
         const autoLogin = async () => {
             const token = storage.loadToken();
-            // TODO: Adicionar validação de token com a API
             if (token) {
-                 // Em um app real, você decodificaria o token para obter o email
-                 // e então solicitaria a senha para derivar a chave e descriptografar.
-                 // Para simplificar, o auto-login direto foi removido para forçar
-                 // a entrada de senha, que é necessária para derivar a chave de decriptografia.
-                 // A sessão "Manter conectado" agora apenas lembra o token, mas a senha
-                 // ainda é necessária para desbloquear os dados.
+                 // Sindicado para futura implementação de sessões reais
             }
             setIsLoading(false);
         };
@@ -66,44 +86,55 @@ const App: React.FC = () => {
 
         } catch (err: any) {
             console.error('Falha no login:', err);
-            setError(err.message || 'Senha incorreta ou falha na comunicação com o servidor.');
-            throw err;
+            const msg = (err?.message && !err.message.includes('operation-specific') && !err.message.includes('OperationError'))
+                ? err.message
+                : 'Senha incorreta. Verifique os dados digitados.';
+            setError(msg);
+            throw new Error(msg);
         } finally {
             setIsLoading(false);
         }
     };
     
     const handleAdminLogin = async (email: string, password: string): Promise<void> => {
-        // Esta lógica precisaria de um endpoint de login de admin dedicado
         setError(null);
         const adminEmail = storage.getAdminUser();
         if (email.toLowerCase() !== adminEmail.toLowerCase()) {
-            setError('Acesso de administrador negado.');
-            throw new Error('Admin access denied');
+            const msg = `Acesso negado. Apenas a conta master (${adminEmail}) possui permissão de administrador.`;
+            setError(msg);
+            throw new Error(msg);
         }
         try {
-            // Apenas verifica as credenciais, não faz login completo
+            if (!storage.userExists(email)) {
+                const msg = `A conta master (${adminEmail}) ainda não foi cadastrada. Crie a conta na aba Cadastrar com a senha desejada.`;
+                setError(msg);
+                throw new Error(msg);
+            }
             const userData = await storage.getUserData(email);
             const salt = new Uint8Array(userData.salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-            await deriveKey(password, salt);
-            // Simula uma verificação de token de admin
+            const key = await deriveKey(password, salt);
+            await storage.login(email, key);
             setIsAdminPanelOpen(true);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Falha ao fazer login como admin:', err);
-            setError('Credenciais de administrador inválidas.');
-            throw err;
+            const msg = (err?.message && !err.message.includes('operation-specific') && !err.message.includes('OperationError'))
+                ? err.message
+                : 'Senha de administrador incorreta.';
+            setError(msg);
+            throw new Error(msg);
         }
     };
 
     const handleRegister = async (email: string, password: string) => {
-        setError(null);
         setIsLoading(true);
+        setError(null);
         try {
             const { salt, saltHex } = generateSalt();
             const key = await deriveKey(password, salt);
             
             await storage.register(email, saltHex, key);
             
+            localStorage.setItem('currentUser', email);
             setMasterKey(key);
             setAccounts([]);
             setCurrentUser(email);
@@ -117,29 +148,21 @@ const App: React.FC = () => {
     };
     
     const handleChangePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
-        // Esta funcionalidade agora seria mais complexa, envolvendo uma chamada de API
-        // para atualizar o salt e potencialmente re-criptografar os dados no servidor.
         if (!currentUser || !masterKey) throw new Error("Usuário não está logado.");
-        console.log("A funcionalidade de alteração de senha precisa ser implementada no backend.");
-        // Exemplo simplificado:
         const userData = await storage.getUserData(currentUser);
         const salt = new Uint8Array(userData.salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-        const verificationKey = await deriveKey(currentPassword, salt);
-        // ... (verificar a chave)
         const newKey = await deriveKey(newPassword, salt);
         await storage.saveAccounts(accounts, newKey);
         setMasterKey(newKey);
     };
 
     const handleExportData = async (password: string): Promise<void> => {
-        // A exportação continua sendo uma funcionalidade local, útil para backup
         if (!currentUser || !masterKey) throw new Error("Usuário não logado.");
         try {
             const encryptedData = await storage.loadEncryptedAccountsAPI(currentUser, storage.getSessionToken()!);
             const userData = await storage.getUserData(currentUser);
             if (!encryptedData) throw new Error("Nenhuma conta encontrada para exportar.");
             
-            // Valida a senha antes de exportar
             await decrypt(encryptedData, masterKey);
 
             const backupData = {
@@ -164,25 +187,36 @@ const App: React.FC = () => {
     };
 
     const handleRestoreData = async (file: File, password: string): Promise<void> => {
-        // A restauração também é local, mas agora envia os dados para o servidor.
         setError(null);
+        setIsLoading(true);
+        console.log('Iniciando restauração real de:', file.name);
         try {
             const text = await file.text();
             const backupData = JSON.parse(text);
-            const { email, salt: saltHex, encryptedAccounts } = backupData;
-
-            // TODO: Adicionar lógica de API para registrar/substituir usuário e dados
-            console.log("Lógica de restauração para API precisa ser implementada.");
-
-            // Exemplo de como poderia ser:
-            // 1. O usuário se registra/loga com email/senha do backup
-            // 2. O app envia o 'encryptedAccounts' para o endpoint de salvamento
             
-            alert("Restauração concluída. Faça login com a senha do backup.");
+            if (!backupData.email || !backupData.salt || !backupData.encryptedAccounts) {
+                throw new Error("Arquivo de backup inválido ou corrompido.");
+            }
 
+            console.log('Derivando chave do backup...');
+            const salt = new Uint8Array(backupData.salt.match(/.{1,2}/g)!.map((byte: string) => parseInt(byte, 16)));
+            const key = await deriveKey(password, salt);
+            
+            console.log('Testando descriptografia do backup...');
+            // Tenta descriptografar para validar a senha
+            await decrypt(backupData.encryptedAccounts, key);
+            
+            console.log('Senha validada. Restaurando no storage...');
+            await storage.restoreUserAPI(backupData.email, backupData.salt, backupData.encryptedAccounts);
+            
+            setNotification("Restauração concluída com sucesso! Agora você pode fazer login com sua senha.");
+            console.log('Restauração concluída para:', backupData.email);
         } catch (err: any) {
-            setError(err.message || 'Falha ao restaurar o backup.');
+            console.error('Erro na restauração:', err);
+            setError(err.message || 'Falha ao restaurar o backup. Verifique a senha e o arquivo.');
             throw err;
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -198,7 +232,16 @@ const App: React.FC = () => {
     }, [masterKey, currentUser]);
 
     const addAccount = async (account: Omit<Account, 'id'>) => {
-        const newAccount: Account = { ...account, id: Date.now().toString() };
+        let finalName = account.name;
+        let counter = 1;
+        const currentIssuer = account.issuer || account.name;
+        
+        while (accounts.some(acc => acc.issuer === currentIssuer && acc.name === finalName)) {
+            counter++;
+            finalName = `${account.name} (${counter})`;
+        }
+
+        const newAccount: Account = { ...account, name: finalName, issuer: currentIssuer, id: Date.now().toString() };
         const updatedAccounts = [...accounts, newAccount];
         setAccounts(updatedAccounts);
         await persistAccounts(updatedAccounts);
@@ -206,25 +249,60 @@ const App: React.FC = () => {
     };
 
     const addMultipleAccounts = async (newAccounts: Omit<Account, 'id'>[]) => {
-        const accountsWithIds = newAccounts.map((acc, index) => ({
-            ...acc,
-            id: `${Date.now()}-${index}`
-        }));
-        const updatedAccounts = [...accounts, ...accountsWithIds];
+        const updatedAccounts = [...accounts];
+        
+        for (const acc of newAccounts) {
+            let finalName = acc.name;
+            let counter = 1;
+            const currentIssuer = acc.issuer || acc.name;
+            
+            while (updatedAccounts.some(existing => existing.issuer === currentIssuer && existing.name === finalName)) {
+                counter++;
+                finalName = `${acc.name} (${counter})`;
+            }
+            
+            updatedAccounts.push({
+                ...acc,
+                name: finalName,
+                issuer: currentIssuer,
+                id: `${Date.now()}-${updatedAccounts.length}`
+            });
+        }
+
         setAccounts(updatedAccounts);
         await persistAccounts(updatedAccounts);
         setIsAddModalOpen(false);
     };
 
-    const deleteAccount = async (id: string) => {
-        const updatedAccounts = accounts.filter(acc => acc.id !== id);
+    const confirmDeleteAccount = (id: string) => {
+        const account = accounts.find(acc => acc.id === id);
+        if (account) {
+            setAccountToDelete(account);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!accountToDelete) return;
+        const updatedAccounts = accounts.filter(acc => acc.id !== accountToDelete.id);
         setAccounts(updatedAccounts);
         await persistAccounts(updatedAccounts);
+        setAccountToDelete(null);
     };
     
     const updateAccount = async (updatedAccount: Account) => {
+        let finalName = updatedAccount.name;
+        let counter = 1;
+        const currentIssuer = updatedAccount.issuer || updatedAccount.name;
+        
+        while (accounts.some(acc => acc.id !== updatedAccount.id && acc.issuer === currentIssuer && acc.name === finalName)) {
+            counter++;
+            finalName = `${updatedAccount.name} (${counter})`;
+        }
+        
+        const accountWithUniqueName = { ...updatedAccount, name: finalName, issuer: currentIssuer };
+
         const updatedAccounts = accounts.map(acc => 
-            acc.id === updatedAccount.id ? updatedAccount : acc
+            acc.id === accountWithUniqueName.id ? accountWithUniqueName : acc
         );
         setAccounts(updatedAccounts);
         await persistAccounts(updatedAccounts);
@@ -265,6 +343,8 @@ const App: React.FC = () => {
                     onAdminLogin={handleAdminLogin}
                     onRestore={handleRestoreData}
                     error={error} 
+                    theme={theme}
+                    onToggleTheme={toggleTheme}
                 />
                 {isAdminPanelOpen && (
                     <AdminPanel
@@ -292,30 +372,65 @@ const App: React.FC = () => {
                         <span className="text-cyan-400">CodeFlow</span>
                         <span className="text-gray-300"> Authenticator</span>
                     </h1>
-                    <p className="text-sm text-gray-400">Bem-vindo, {currentUser}</p>
+                    <p className="text-xs font-medium text-cyan-400">By Carlos Arthur Ferrão Júnior.</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Bem-vindo, {currentUser}</p>
                  </div>
-                 <div className="flex items-center space-x-2">
-                    <button
-                        onClick={() => setIsChangePasswordModalOpen(true)}
-                        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-                        aria-label="Alterar Senha"
-                    >
-                        <UserCircleIcon className="w-6 h-6" />
-                    </button>
-                     <button
-                        onClick={() => setIsExportModalOpen(true)}
-                        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-                        aria-label="Exportar Dados"
-                    >
-                        <ArrowDownTrayIcon className="w-6 h-6" />
-                    </button>
-                    <button
-                        onClick={handleLogout}
-                        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-                        aria-label="Sair"
-                    >
-                        <ArrowRightOnRectangleIcon className="w-6 h-6" />
-                    </button>
+                 <div className="flex items-center space-x-1 sm:space-x-2">
+                    <Tooltip text={theme === 'dark' ? "Ativar Modo Dia (Alto Contraste)" : "Ativar Modo Noite"}>
+                        <button
+                            onClick={toggleTheme}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors text-xs font-semibold"
+                            aria-label={theme === 'dark' ? "Ativar Modo Dia" : "Ativar Modo Noite"}
+                        >
+                            {theme === 'dark' ? (
+                                <>
+                                    <SunIcon className="w-4 h-4 text-amber-400" />
+                                    <span className="hidden sm:inline text-gray-200">Contraste Dia</span>
+                                </>
+                            ) : (
+                                <>
+                                    <MoonIcon className="w-4 h-4 text-cyan-500" />
+                                    <span className="hidden sm:inline text-gray-800">Contraste Noite</span>
+                                </>
+                            )}
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Ajuda e FAQ">
+                        <button
+                            onClick={() => setIsHelpModalOpen(true)}
+                            className="p-2 rounded-full hover:bg-gray-700 transition-colors text-cyan-400"
+                            aria-label="Ajuda e FAQ"
+                        >
+                            <InformationCircleIcon className="w-6 h-6" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Alterar Senha">
+                        <button
+                            onClick={() => setIsChangePasswordModalOpen(true)}
+                            className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                            aria-label="Alterar Senha"
+                        >
+                            <UserCircleIcon className="w-6 h-6" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Exportar Dados">
+                        <button
+                            onClick={() => setIsExportModalOpen(true)}
+                            className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                            aria-label="Exportar Dados"
+                        >
+                            <ArrowDownTrayIcon className="w-6 h-6" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Sair">
+                        <button
+                            onClick={handleLogout}
+                            className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                            aria-label="Sair"
+                        >
+                            <ArrowRightOnRectangleIcon className="w-6 h-6" />
+                        </button>
+                    </Tooltip>
                  </div>
             </header>
             
@@ -335,26 +450,41 @@ const App: React.FC = () => {
                         />
                     </div>
                 )}
-                <AccountList accounts={filteredAccounts} onDelete={deleteAccount} onEdit={handleOpenEditModal} />
+                <AccountList 
+                    accounts={filteredAccounts} 
+                    onDelete={confirmDeleteAccount} 
+                    onEdit={handleOpenEditModal} 
+                    onOpenAddModal={() => setIsAddModalOpen(true)} 
+                />
             </main>
             
             <footer className="w-full text-center py-4 mt-6">
                 <p className="text-sm text-cyan-400 font-medium">By Carlos Arthur Ferrão Júnior.</p>
             </footer>
 
-            <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="fixed bottom-6 right-6 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full p-4 shadow-lg transition-transform transform hover:scale-110"
-                aria-label="Add new account"
-            >
-                <PlusIcon className="w-8 h-8" />
-            </button>
+            <div className="fixed bottom-6 right-6 z-40">
+                <Tooltip text="Adicionar Conta" position="left">
+                    <div className="relative inline-block">
+                        {accounts.length === 0 && (
+                            <span className="absolute -inset-1 rounded-full bg-cyan-400 opacity-75 animate-ping pointer-events-none"></span>
+                        )}
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className={`relative bg-cyan-500 hover:bg-cyan-600 text-white rounded-full p-4 shadow-xl transition-transform transform hover:scale-110 flex items-center justify-center ${accounts.length === 0 ? 'animate-pulse ring-4 ring-cyan-300 ring-offset-2 ring-offset-gray-900' : ''}`}
+                            aria-label="Add new account"
+                        >
+                            <PlusIcon className="w-8 h-8" />
+                        </button>
+                    </div>
+                </Tooltip>
+            </div>
 
             {isAddModalOpen && (
                 <AddAccountModal
                     onClose={() => setIsAddModalOpen(false)}
                     onAddAccount={addAccount}
                     onAddMultipleAccounts={addMultipleAccounts}
+                    existingAccounts={accounts}
                 />
             )}
             {isChangePasswordModalOpen && (
@@ -371,6 +501,7 @@ const App: React.FC = () => {
                         setAccountToEdit(null);
                     }}
                     onSave={updateAccount}
+                    existingAccounts={accounts}
                 />
             )}
              {isExportModalOpen && (
@@ -379,6 +510,19 @@ const App: React.FC = () => {
                     onExport={handleExportData}
                 />
             )}
+            {accountToDelete && (
+                <DeleteConfirmationModal
+                    account={accountToDelete}
+                    onClose={() => setAccountToDelete(null)}
+                    onConfirm={handleDeleteAccount}
+                />
+            )}
+            {isHelpModalOpen && (
+                <HelpModal onClose={() => setIsHelpModalOpen(false)} />
+            )}
+            
+            {/* Autofill Extension Simulator */}
+            <AutofillHelper accounts={accounts} />
         </div>
     );
 };
